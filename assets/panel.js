@@ -8,7 +8,7 @@
 // - Frame: the panel window, its reader state, and the rule of one panel for each page.
 import { html } from "@slate/widget";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { controlMarkup, wireControl, notebookState, notebookCells, teardownControls }
+import { controlMarkup, wireControl, transBinduses, notebookState, notebookCells, teardownControls }
   from "slatecontrols/adapter";
 
 // ── Copies ───────────────────────────────────────────────────────────────────────────────────────
@@ -38,34 +38,155 @@ function teardownCopies(root) {
 
 // ── List ─────────────────────────────────────────────────────────────────────────────────────────
 
-// The controls that the panel shows, in groups. A group is `{ cellId, items }`, and an item is
-// `{ cellId, bind, pinned }`: the declaring cell, the bind spec, and true for a pinned control. The
-// `cellId` of a group is null when the list has no groups.
-function panelGroups(cells, pinned, ui) {
-  const found = new Map();
-  for (const c of cells)
-    for (const b of c.binds || [])
-      if (!found.has(b.name)) found.set(b.name, { cellId: c.id, bind: b, pinned: true });
-  const items = pinned.filter(n => found.has(n)).map(n => found.get(n));
-  return items.length === 0 ? [] : [{ cellId: null, items }];
+const MODES = [["pinned", "Pinned"], ["in_view", "In view"], ["both", "Both"], ["all", "All"]];
+
+// The result parts of a cell. The editor and the header are not in the list.
+const RESULT_PARTS = "#nb .cell > :is(.binds, .controls, .output, .tables, .echarts, .anim, .md)";
+
+// The ids of the cells that are in view: a result part of the cell is at least 1 px inside the
+// window, minus a band of 10% at the top and at the bottom. The value is null until the first
+// check. The ids change 175 ms after the last scroll or notebook update, and never while the
+// pointer is over the panel or a panel control has focus. Call it from a component. `cells` is the
+// notebook state: a new value makes the hook look for new result parts.
+function useInView(frame, cells) {
+  const [inView, setInView] = useState(null);
+  const watch = useRef(null);                   // { rescan }: the observer of the mounted component
+  useEffect(() => {
+    const root = frame.current;
+    const parts = new Map();                    // result part -> { cell, on }: `on` is true in view
+    let timer = 0, first = true;
+    const frozen = () => root.matches(":hover") || root.contains(document.activeElement);
+    const settle = () => {
+      if (frozen()) return;                     // the leave of the pointer or the focus starts it again
+      const own = (root.closest(".cell") || {}).dataset;
+      const ids = new Set();
+      for (const p of parts.values()) if (p.on && !(own && p.cell === own.cid)) ids.add(p.cell);
+      setInView(old => old && old.size === ids.size && [...ids].every(i => old.has(i)) ? old : ids);
+    };
+    const schedule = () => { clearTimeout(timer); timer = setTimeout(settle, 175); };
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) {
+        const p = parts.get(e.target);
+        if (p) p.on = e.isIntersecting && e.intersectionRect.height >= 1;
+      }
+      if (first) { first = false; settle(); } else schedule();
+    }, { rootMargin: "-10% 0px -10% 0px" });
+    watch.current = { rescan() {
+      const live = new Set(document.querySelectorAll(RESULT_PARTS));
+      for (const el of [...parts.keys()]) if (!live.has(el)) { io.unobserve(el); parts.delete(el); }
+      for (const el of live) if (!parts.has(el)) {
+        parts.set(el, { cell: el.parentElement.dataset.cid, on: false });
+        io.observe(el);
+      }
+      schedule();
+    } };
+    root.addEventListener("pointerleave", schedule);
+    root.addEventListener("focusout", schedule);
+    window.addEventListener("scroll", schedule, { passive: true });
+    return () => {
+      clearTimeout(timer);
+      io.disconnect();
+      root.removeEventListener("pointerleave", schedule);
+      root.removeEventListener("focusout", schedule);
+      window.removeEventListener("scroll", schedule);
+    };
+  }, []);
+  useEffect(() => { watch.current.rescan(); }, [cells]);
+  return inView;
 }
 
-// The body of the panel: the controls in their groups.
-function ControlsList({ pinned, ui, setUi, frame }) {
-  const body = useRef(null);
-  const groups = panelGroups(notebookCells(), pinned, ui);
-  const key = JSON.stringify(groups.map(g => [g.cellId, g.items.map(i => copyKey(i.cellId, i.bind))]));
+// The controls that the panel shows, as items `{ cellId, bind, pinned }`: the declaring cell, the
+// bind spec, and true for a pinned control. The order is the notebook order of the declaring cell,
+// then the declaration order in the cell. Without groups, the pinned controls of the modes
+// "pinned" and "both" come first, in the order of `pinned`.
+function panelItems(cells, pinned, mode, grouping, inView) {
+  const all = [], seen = new Set(), near = new Set();
+  for (const c of cells) {
+    for (const b of c.binds || []) if (!seen.has(b.name)) {
+      seen.add(b.name);
+      all.push({ cellId: c.id, bind: b, pinned: pinned.includes(b.name) });
+    }
+    if (inView.has(c.id)) {
+      for (const b of c.binds || []) near.add(b.name);
+      for (const n of transBinduses(c)) near.add(n);
+    }
+  }
+  const keep = { pinned: i => i.pinned, in_view: i => near.has(i.bind.name),
+                 both: i => i.pinned || near.has(i.bind.name), all: () => true }[mode];
+  const items = all.filter(keep);
+  if (grouping || (mode !== "pinned" && mode !== "both")) return items;
+  const rank = i => i.pinned ? pinned.indexOf(i.bind.name) : pinned.length;
+  return items.sort((a, b) => rank(a) - rank(b));          // a stable sort keeps the other order
+}
+
+// One control. The copy is in the page as long as the row lives. A row has the key of its copy, so
+// the panel draws a copy again only when the control changes its cell, kind or `params`. A change of
+// the pin mark or of the group does not touch the copy.
+function Row({ item, showPin }) {
+  const slot = useRef(null);
   useEffect(() => {
-    const el = body.current;
-    if (el === null) return;
-    teardownCopies(el);
-    el.replaceChildren(...groups.flatMap(g => g.items.map(i => copyElement(i.cellId, i.bind))));
+    const el = slot.current;
+    el.append(copyElement(item.cellId, item.bind));
     wireCopies(el);
-  }, [key]);
+    return () => teardownCopies(el);
+  }, []);
+  return html`<div class="sc-row" data-name=${item.bind.name}>
+    ${showPin && html`<span class=${"sc-pin" + (item.pinned ? " sc-lit" : "")}
+      title=${item.pinned ? "Pinned" : "Not pinned"}>📌</span>`}
+    <div class="sc-slot" ref=${slot}></div>
+  </div>`;
+}
+
+const jumpTo = id => {
+  const el = document.getElementById("cell-" + id);
+  if (el) el.scrollIntoView({ block: "start", behavior: "smooth" });
+};
+
+const EMPTY = {
+  pinned: "No pinned name has a control.",
+  in_view: "No controls affect the cells in view",
+  both: "No pinned control, and no control affects the cells in view",
+  all: "The notebook has no controls.",
+};
+
+// The body of the panel: the mode switch, the grouping switch and the controls.
+function ControlsList({ pinned, ui, setUi, frame }) {
+  const cells = notebookCells();
+  const inView = useInView(frame, cells);
+  const mode = MODES.some(m => m[0] === ui.mode) ? ui.mode : "pinned";
+  const items = panelItems(cells, pinned, mode, ui.grouping, inView || new Set());
+  const row = i => html`<${Row} key=${copyKey(i.cellId, i.bind)} item=${i} showPin=${mode !== "pinned"} />`;
+
+  let body;
+  if (ui.grouping) {
+    const groups = new Map();
+    for (const i of items) groups.set(i.cellId, [...(groups.get(i.cellId) || []), i]);
+    const fold = id => setUi({ folded: ui.folded.includes(id) ? ui.folded.filter(f => f !== id) : [...ui.folded, id] });
+    body = [...groups].map(([id, rows]) => {
+      const folded = ui.folded.includes(id);
+      return html`<div class=${"sc-group" + (folded ? " sc-folded" : "")} key=${id}>
+        <div class="sc-ghead">
+          <button class="sc-fold" aria-expanded=${!folded} title=${folded ? "Unfold" : "Fold"}
+            onClick=${() => fold(id)}>${folded ? "▸" : "▾"}</button>
+          <button class="sc-gname" title="Go to the cell" onClick=${() => jumpTo(id)}>${id}</button>
+          ${inView && inView.has(id) && html`<span class="sc-seen" title="The cell is in view">●</span>`}
+        </div>
+        <div class="sc-gbody">${rows.map(row)}</div>
+      </div>`;
+    });
+  } else body = items.map(row);
 
   return html`
-    ${groups.length === 0 && html`<div class="hint">No pinned name has a control.</div>`}
-    <div class="sc-body" ref=${body}></div>`;
+    <div class="sc-bar">
+      <div class="sc-seg" role="group" aria-label="Mode">
+        ${MODES.map(([m, label]) => html`<button key=${m} class=${m === mode ? "sc-on" : ""}
+          aria-pressed=${m === mode} onClick=${() => setUi({ mode: m })}>${label}</button>`)}
+      </div>
+      <button class=${"sc-switch" + (ui.grouping ? " sc-on" : "")} aria-pressed=${ui.grouping}
+        title="Group the controls by cell" onClick=${() => setUi({ grouping: !ui.grouping })}>Groups</button>
+    </div>
+    ${items.length === 0 && (mode !== "in_view" || inView !== null) && html`<div class="sc-empty">${EMPTY[mode]}</div>`}
+    <div class="sc-body">${body}</div>`;
 }
 
 // ── Frame ────────────────────────────────────────────────────────────────────────────────────────

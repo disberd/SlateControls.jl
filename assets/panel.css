@@ -59,3 +59,27 @@
 
 
 /* ── List ──────────────────────────────────────────────────────────────────────────────────── */
+
+.sc-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px;
+  border-bottom: 1px solid var(--border); }
+.sc-seg { display: flex; }
+.sc-seg button, .sc-switch { font: inherit; font-size: .78rem; padding: 2px 8px; cursor: pointer;
+  color: var(--dim); background: var(--bg2); border: 1px solid var(--border); }
+.sc-seg button + button { margin-left: -1px; }
+.sc-seg button:first-child { border-radius: 4px 0 0 4px; }
+.sc-seg button:last-child { border-radius: 0 4px 4px 0; }
+.sc-switch { margin-left: auto; border-radius: 4px; }
+.sc-seg button.sc-on, .sc-switch.sc-on { color: var(--text); border-color: var(--accent);
+  background: var(--bg3); }
+.sc-empty { padding: 12px 10px; color: var(--dim); font-size: .85rem; }
+.sc-ghead { display: flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--bg2);
+  border-bottom: 1px solid var(--border); }
+.sc-fold, .sc-gname { font: inherit; background: none; border: 0; color: var(--dim); cursor: pointer; }
+.sc-gname { flex: 1; text-align: left; font-size: .78rem; padding: 0; }
+.sc-gname:hover { color: var(--accent); }
+.sc-seen { color: var(--green); font-size: .7rem; }
+.sc-folded > .sc-gbody { display: none; }
+.sc-row { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
+.sc-slot { flex: 1; min-width: 0; }
+.sc-pin { flex: none; padding-left: 8px; font-size: .75rem; opacity: .25; filter: grayscale(1); }
+.sc-pin.sc-lit { opacity: 1; filter: none; }
