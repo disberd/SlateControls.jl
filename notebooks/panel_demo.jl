@@ -29,9 +29,6 @@ using SlateControls
 #%% code id=panel
 ControlsPanel(:freq, :color, :grid, :title, :nothere)
 
-#%% code id=1d38a4
-ControlsPanel(:freq, :color, :grid, :title, :nothere)
-
 # ╔═╡ Slate.config · per-notebook settings (Settings panel)
 #   docid = ea36326c-752e-4995-9285-9ad4ee5f0072
 # ╚═╡

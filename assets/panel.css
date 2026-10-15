@@ -1,0 +1,61 @@
+/* The styles of the controls panel. The root element has the class `slatecontrols-panel`. The
+   classes of the parts in it start with `sc-`. */
+
+/* ── Frame ─────────────────────────────────────────────────────────────────────────────────── */
+
+/* The z-index is above the cells and their chrome (7 at most). It is below the Slate docks (25 and
+   up), the top bar (30) and the Slate dialogs (50 and up). A dock that the reader opens covers
+   the panel. */
+.slatecontrols-panel { position: fixed; z-index: 24; display: flex; flex-direction: column;
+  box-sizing: border-box; background: var(--bg2); color: var(--text); font-size: .85rem;
+  line-height: 1.4; border: 1px solid var(--border); box-shadow: 0 8px 28px rgba(0, 0, 0, .4); }
+.sc-side { top: var(--topbar-h, 49px); bottom: 0; }
+.sc-side.sc-right { right: 0; border-right: none; }
+.sc-side.sc-left { left: 0; border-left: none; }
+.sc-float { border-radius: 10px; overflow: hidden; }
+
+.sc-header { display: flex; align-items: center; gap: 4px; padding: 6px 8px; flex: 0 0 auto;
+  background: var(--bg3); border-bottom: 1px solid var(--border); user-select: none; touch-action: none; }
+.sc-float .sc-header { cursor: move; }
+.sc-title { flex: 1; font-weight: 600; color: var(--strong, var(--text)); }
+.sc-header button { width: 26px; height: 24px; padding: 0; font-size: .9rem; line-height: 1;
+  background: none; color: var(--dim); border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+.sc-header button:hover { color: var(--accent); border-color: var(--accent); }
+
+.sc-content { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; }
+
+/* The grip is the inner edge of the side panel, or the bottom right corner of the floating window. */
+.sc-grip { position: absolute; z-index: 1; touch-action: none; user-select: none; }
+.sc-side .sc-grip { top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.sc-side.sc-right .sc-grip { left: 0; }
+.sc-side.sc-left .sc-grip { right: 0; }
+.sc-side .sc-grip:hover { background: color-mix(in srgb, var(--accent) 50%, transparent); }
+.sc-float .sc-grip { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--dim) 50%); opacity: .6; }
+.sc-float .sc-grip:hover { opacity: 1; }
+
+/* A collapsed panel keeps its elements and shows only the tab. `display: contents` removes the box
+   of the panel, so the tab positions itself against the window. */
+.sc-tab { display: none; }
+.sc-collapsed { display: contents; }
+.sc-collapsed .sc-header, .sc-collapsed .sc-content, .sc-collapsed .sc-grip { display: none; }
+.sc-collapsed .sc-tab { display: block; position: fixed; z-index: 24; cursor: pointer;
+  background: var(--bg2); color: var(--text); border: 1px solid var(--border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .4); font: inherit; font-size: .8rem; }
+.sc-collapsed .sc-tab:hover { color: var(--accent); border-color: var(--accent); }
+.sc-side.sc-collapsed .sc-tab { top: calc(var(--topbar-h, 49px) + 24px); padding: 12px 5px;
+  writing-mode: vertical-rl; }
+.sc-side.sc-right.sc-collapsed .sc-tab { right: 0; border-right: none; border-radius: 8px 0 0 8px; }
+.sc-side.sc-left.sc-collapsed .sc-tab { left: 0; border-left: none; border-radius: 0 8px 8px 0; }
+.sc-float.sc-collapsed .sc-tab { left: 16px; bottom: 16px; padding: 7px 12px; border-radius: 999px; }
+
+/* The strip that shows where a drop docks the floating window. */
+.sc-dockhint { position: fixed; top: var(--topbar-h, 49px); bottom: 0; width: 32px; pointer-events: none;
+  background: color-mix(in srgb, var(--accent) 25%, transparent); border: 2px dashed var(--accent); }
+.sc-dock-left { left: 0; }
+.sc-dock-right { right: 0; }
+
+/* ── Copies ────────────────────────────────────────────────────────────────────────────────── */
+
+
+/* ── List ──────────────────────────────────────────────────────────────────────────────────── */
