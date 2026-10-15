@@ -71,8 +71,8 @@ const RESULT_PARTS = "#nb .cell > :is(.binds, .controls, .output, .tables, .echa
 // The ids of the cells that are in view: a result part of the cell is at least 1 px inside the
 // window, minus a band of 10% at the top and at the bottom. The value is null until the first
 // check. The ids change 175 ms after the last scroll or notebook update, and never while the
-// pointer is over the panel or a panel control has focus. Call it from a component. `cells` is the
-// notebook state: a new value makes the hook look for new result parts.
+// pointer is over the panel or a panel control has keyboard focus. Call it from a component.
+// `cells` is the notebook state: a new value makes the hook look for new result parts.
 function useInView(frame, cells) {
   const [inView, setInView] = useState(null);
   const watch = useRef(null);                   // { rescan }: the observer of the mounted component
@@ -80,7 +80,10 @@ function useInView(frame, cells) {
     const root = frame.current;
     const parts = new Map();                    // result part -> { cell, on }: `on` is true in view
     let timer = 0, first = true;
-    const frozen = () => root.matches(":hover") || root.contains(document.activeElement);
+    // A control keeps the focus after a mouse edit until the reader clicks somewhere else, so any
+    // focus would freeze the list after the pointer leaves. `:focus-visible` is the focus of the
+    // keyboard, and of a text field that the reader types in.
+    const frozen = () => root.matches(":hover") || root.querySelector(":focus-visible") !== null;
     const settle = () => {
       if (frozen()) return;                     // the leave of the pointer or the focus starts it again
       const own = (root.closest(".cell") || {}).dataset;
