@@ -57,6 +57,11 @@
 
 /* ── Copies ────────────────────────────────────────────────────────────────────────────────── */
 
+/* The hint of a custom widget copy shows only while the front end of the widget has not filled the
+   container. */
+.slatecontrols-panel .sc-nokind { display: none; color: var(--red); font-size: 12px; }
+.slatecontrols-panel .customwidget:empty + .sc-nokind { display: inline; }
+
 
 /* ── List ──────────────────────────────────────────────────────────────────────────────────── */
 

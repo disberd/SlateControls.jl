@@ -35,3 +35,7 @@ export const notebookCells = () =>
 
 // Release the resources of the custom controls under `root`, before the panel removes them.
 export const teardownControls = root => window.slateTeardownOutput && window.slateTeardownOutput(root);
+
+// Typeset the math in the labels of the controls under `root`. Slate typesets only at page load
+// and when it mounts the controls of a cell.
+export const typesetControls = root => window.typeset && window.typeset(root);

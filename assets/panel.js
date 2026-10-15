@@ -8,17 +8,32 @@
 // - Frame: the panel window, its reader state, and the rule of one panel for each page.
 import { html } from "@slate/widget";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { controlMarkup, wireControl, transBinduses, notebookState, notebookCells, teardownControls }
+import { controlMarkup, wireControl, transBinduses, notebookState, notebookCells, teardownControls,
+  typesetControls }
   from "slatecontrols/adapter";
 
 // ── Copies ───────────────────────────────────────────────────────────────────────────────────────
 
 // The copy of the control `b` that the cell `cellId` declares. The copy is not wired: call
 // `wireCopies` after it is in the page.
+//
+// The element is a `form` for two reasons. Radio inputs with one name make one group only inside one
+// form owner, so the radios of a copy do not share a selection with the radios of the original, and
+// they keep that after Slate builds the options again under the name of the original. The `form`
+// also stops a submit (Enter in a text field, a button of a custom widget) from reloading the page.
 function copyElement(cellId, b) {
-  const el = document.createElement("div");
+  const el = document.createElement("form");
   el.className = "widget";                // the class gives the `.wval` value mirror and the style
+  el.addEventListener("submit", e => e.preventDefault());
   el.innerHTML = controlMarkup(cellId, b);
+  // A kind that Slate does not draw is a custom widget. Its front end fills the empty container
+  // when it registers. The hint shows only while the container is empty (see panel.css).
+  if (el.querySelector(".customwidget")) {
+    const hint = document.createElement("span");
+    hint.className = "sc-nokind";
+    hint.textContent = `No front end is registered for the widget kind "${b.widget}".`;
+    el.append(hint);
+  }
   return el;
 }
 
@@ -26,9 +41,19 @@ function copyElement(cellId, b) {
 // values of the copies in place, so a copy keeps its element while the reader moves it.
 const copyKey = (cellId, b) => JSON.stringify([cellId, b.name, b.widget, b.params]);
 
-// Wire the copies under `root`. Call it after `root` is in the page.
+// Wire the copies under `root`. Call it after `root` is in the page. A copy is wired one time:
+// Slate wires every `[data-bind]` element of the panel cell again when that cell gets a bind or a
+// control strip, and a second wiring adds a second listener (a `multiselect` row then toggles
+// twice for one click). After the first wiring, the element ignores new listeners. A custom widget
+// is not changed: Slate wires it one time and the widget can add listeners later.
 function wireCopies(root) {
-  root.querySelectorAll("[data-bind]").forEach(wireControl);
+  root.querySelectorAll("[data-bind]").forEach(el => {
+    if (el._scWired) return;
+    el._scWired = true;
+    wireControl(el);
+    if (!el.classList.contains("customwidget")) el.addEventListener = () => {};
+  });
+  root.querySelectorAll(".radiogroup, .checkgroup, .mslist").forEach(typesetControls);  // `$math$` in labels
 }
 
 // Release the copies under `root`, before the panel removes them.

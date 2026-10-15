@@ -23,6 +23,63 @@ using SlateControls
 #%% code id=words
 @bind title TextField("A plot")
 
+#%% md id=kind_intro
+@md"""
+## One control of each kind
+
+The cells `kind_*` declare one control of each built-in kind, with labelled and non-string option
+values. `secret` is hidden, so the notebook does not draw it, but the panel does. `spot` has no
+figure to aim at, so its copy shows the same hint as the original.
+"""
+
+#%% code id=kind_numeric
+@bind span RangeSlider(0:10; default = (2, 8))
+@bind note TextArea("Some notes"; rows = 2)
+@bind live Toggle(false; on = "Live", off = "Paused")
+@bind secret hidden(Slider(0:5; default = 2))
+
+#%% code id=kind_time
+@bind tint ColorPicker("#3aa0ff")
+@bind day DateField("2026-10-15")
+@bind at TimeField("12:30")
+
+#%% code id=kind_options
+@bind shape Radio([:circle => "Circle", :square => "Square", :triangle => "Triangle"])
+@bind size_sel Select([1 => "small", 10 => "medium", 100 => "large"], 10)
+@bind tags MultiSelect([(1, 2) => "pair", [3] => "vector", 4.5 => "float"], [4.5])
+@bind checks MultiCheckBox(["x", "y", "z"], ["y"])
+@bind rich Radio([1 => raw"$x^2$", 2 => raw"$\alpha + \beta$"])
+
+#%% code id=kind_dynamic
+@bind level Radio(["L$i" for i in 1:freq])
+
+#%% code id=kind_table
+@bind sheet TableSelect([(name = "ada", score = 3), (name = "bob", score = 5), (name = "cy", score = 8)])
+
+#%% code id=kind_action
+@bind go Button("Press")
+@bind upload FileUpload(accept = ".txt")
+@bind spot PickPoint()
+@bind frame playhead(nothing)
+
+#%% code id=kind_custom_def
+WebPage(js = raw"""
+window.slateRegisterWidget('demo-stepper', {
+  wire(el, api) {
+    el.innerHTML = '<button class="dec">-</button> <span class="n"></span> <button class="inc">+</button>';
+    const set = v => { el._n = v; el.querySelector('.n').textContent = v; };
+    set(Number(api.value) || 0);
+    el.querySelector('.dec').onclick = () => { set(el._n - 1); api.flush(el._n); };
+    el.querySelector('.inc').onclick = () => { set(el._n + 1); api.flush(el._n); };
+  },
+  sync(el, v) { el.querySelector('.n').textContent = el._n = Number(v) || 0; },
+});
+""")
+
+#%% code id=kind_custom
+@bind steps custom_widget("demo-stepper", 3; label = "steps")
+@bind ghost custom_widget("no-such-kind", 0; label = "ghost")
+
 #%% code id=readout
 (; freq, n, color, grid, title)
 
@@ -60,7 +117,9 @@ pad("<b>view_seeded</b> reads the hidden control <code>seed</code>: seed = $seed
 pad("<b>view_none</b> reads no control")
 
 #%% code id=panel
-ControlsPanel(:freq, :color, :grid, :title, :nothere)
+ControlsPanel(:freq, :n, :color, :grid, :title, :span, :note, :live, :secret, :tint, :day, :at, :shape,
+              :size_sel, :tags, :checks, :rich, :level, :sheet, :go, :upload, :spot, :frame, :steps,
+              :ghost, :nothere)
 
 # ╔═╡ Slate.env · notebook packages (auto-maintained — manage via the package panel)
 #   Observables 0.5.5 510215fc-4207-5dde-b226-833fc4488ee2
