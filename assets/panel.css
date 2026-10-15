@@ -22,7 +22,8 @@
   background: none; color: var(--dim); border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
 .sc-header button:hover { color: var(--accent); border-color: var(--accent); }
 
-.sc-content { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; }
+/* No top padding: the sticky bar of the List sits flush at the top, and no row shows above it. */
+.sc-content { flex: 1; min-height: 0; overflow: auto; padding: 0 10px 8px; }
 
 /* The grip is the inner edge of the side panel, or the bottom right corner of the floating window. */
 .sc-grip { position: absolute; z-index: 1; touch-action: none; user-select: none; }
@@ -65,13 +66,16 @@
 
 /* ── List ──────────────────────────────────────────────────────────────────────────────────── */
 
+/* The bar stays at the top of the scroll area of the panel. The background hides the rows under it. */
 .sc-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px;
-  border-bottom: 1px solid var(--border); }
+  border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1; background: var(--bg2); }
 .sc-seg { display: flex; }
 .sc-seg button, .sc-switch { font: inherit; font-size: .78rem; padding: 2px 8px; cursor: pointer;
   color: var(--dim); background: var(--bg2); border: 1px solid var(--border); }
+.sc-seg button { border-radius: 0; }       /* only the outer corners of the group are round */
 .sc-seg button + button { margin-left: -1px; }
 .sc-seg button:first-child { border-radius: 4px 0 0 4px; }
+.sc-seg button.sc-on { position: relative; }   /* its accent border shows over the neighbours */
 .sc-seg button:last-child { border-radius: 0 4px 4px 0; }
 .sc-switch { margin-left: auto; border-radius: 4px; }
 .sc-seg button.sc-on, .sc-switch.sc-on { color: var(--text); border-color: var(--accent);
