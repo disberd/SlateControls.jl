@@ -9,7 +9,12 @@
 .slatecontrols-panel { position: fixed; z-index: 24; display: flex; flex-direction: column;
   box-sizing: border-box; background: var(--bg2); color: var(--text); font-size: .85rem;
   line-height: 1.4; border: 1px solid var(--border); box-shadow: 0 8px 28px rgba(0, 0, 0, .4); }
-.sc-side { top: var(--topbar-h, 49px); bottom: 0; }
+/* The top of the panel area: below the Slate top bar. App mode hides the top bar, but it shows a
+   settings button at the top right, 14 px from the top and about 32 px high (`.appctl`, z-index
+   110). The panel stays below that button, so the button does not cover the panel buttons. */
+body { --sc-top: var(--topbar-h, 49px); }
+body.app { --sc-top: 56px; }
+.sc-side { top: var(--sc-top); bottom: 0; }
 .sc-side.sc-right { right: 0; border-right: none; }
 .sc-side.sc-left { left: 0; border-left: none; }
 .sc-float { border-radius: 10px; overflow: hidden; }
@@ -44,14 +49,14 @@
   background: var(--bg2); color: var(--text); border: 1px solid var(--border);
   box-shadow: 0 4px 14px rgba(0, 0, 0, .4); font: inherit; font-size: .8rem; }
 .sc-collapsed .sc-tab:hover { color: var(--accent); border-color: var(--accent); }
-.sc-side.sc-collapsed .sc-tab { top: calc(var(--topbar-h, 49px) + 24px); padding: 12px 5px;
+.sc-side.sc-collapsed .sc-tab { top: calc(var(--sc-top) + 24px); padding: 12px 5px;
   writing-mode: vertical-rl; }
 .sc-side.sc-right.sc-collapsed .sc-tab { right: 0; border-right: none; border-radius: 8px 0 0 8px; }
 .sc-side.sc-left.sc-collapsed .sc-tab { left: 0; border-left: none; border-radius: 0 8px 8px 0; }
 .sc-float.sc-collapsed .sc-tab { left: 16px; bottom: 16px; padding: 7px 12px; border-radius: 999px; }
 
 /* The strip that shows where a drop docks the floating window. */
-.sc-dockhint { position: fixed; top: var(--topbar-h, 49px); bottom: 0; width: 32px; pointer-events: none;
+.sc-dockhint { position: fixed; top: var(--sc-top); bottom: 0; width: 32px; pointer-events: none;
   background: color-mix(in srgb, var(--accent) 25%, transparent); border: 2px dashed var(--accent); }
 .sc-dock-left { left: 0; }
 .sc-dock-right { right: 0; }

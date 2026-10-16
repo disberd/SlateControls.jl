@@ -16,6 +16,9 @@ bound value, as an edit in the original control does.
 - `:both`: the pinned controls and the in-view controls.
 - `:all`: all the controls of the notebook.
 
+At the first load, the panel is open when `names` is not empty. With no `names`, the panel shows
+only its tab.
+
 The reader can pin and unpin controls in the panel, and change the mode, the groups and the layout.
 The browser keeps these changes for each notebook. The pins of the reader are changes to `names`,
 so a new `names` list in the cell code still has an effect. The reset button of the panel removes
@@ -23,6 +26,9 @@ all the changes of the reader. The panel then uses `names`, `mode` and the defau
 
 Use one `ControlsPanel` on a page. A second panel shows an error in its output. On a static page,
 the panel shows nothing.
+
+Do not set the `collapsed` or `notes` flag on the panel cell. Slate hides the output of a collapsed
+cell, and of a notes cell in app mode. The panel is in that output. The panel works in app mode.
 """
 struct ControlsPanel
     pinned::Vector{Symbol}

@@ -228,11 +228,12 @@ let owner = null;
 const isLive = ref => ref !== null && (ref.current === null || ref.current.isConnected);
 
 // The reader state of the panel, before the reader changes it. The mode is the mode of the cell code.
+// The panel is open when the cell code pins a control, else it shows only its tab.
 const initialUi = params => ({
   mode: (params && params.mode) || "pinned",   // "pinned", "in_view", "both" or "all"
   grouping: true,                              // groups by declaring cell
   folded: [],                                  // the ids of the folded group cells
-  collapsed: false,
+  collapsed: !(params && params.pinned && params.pinned.length),
   layout: "side",                              // "side" or "float"
   side: "right",                               // "right" or "left"
   width: 320,                                  // the width of the side panel, in px
@@ -277,9 +278,9 @@ function setPin(author, pins, name, on) {
 const MIN_SIDE = 200, SIDE_GAP = 48, MIN_W = 220, MIN_H = 120, EDGE = 32;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
 
-// The height of the Slate top bar: the panel stays below it. It is 0 where Slate hides the bar.
+// The top of the panel area, in px: `--sc-top` of panel.css. The panel stays below it.
 const topInset = () => {
-  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar-h"));
+  const v = parseFloat(getComputedStyle(document.body).getPropertyValue("--sc-top"));
   return Number.isNaN(v) ? 49 : v;
 };
 const viewport = () => {
@@ -295,7 +296,7 @@ const defaultFloat = () => {
 
 // The CSS of the side panel and of the floating window. The panel keeps its size and position in
 // the window when the window gets smaller, so the reader cannot lose it off screen.
-const T = "var(--topbar-h, 49px)";
+const T = "var(--sc-top)";
 const sideStyle = ui => `width: clamp(${MIN_SIDE}px, ${ui.width}px, calc(100% - ${SIDE_GAP}px))`;
 const floatStyle = f =>
   `width: min(${f.w}px, 100%); height: min(${f.h}px, calc(100% - ${T})); ` +
