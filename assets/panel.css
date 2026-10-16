@@ -90,5 +90,7 @@
 .sc-folded > .sc-gbody { display: none; }
 .sc-row { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
 .sc-slot { flex: 1; min-width: 0; }
-.sc-pin { flex: none; padding-left: 8px; font-size: .75rem; opacity: .25; filter: grayscale(1); }
+.sc-pin { flex: none; margin-left: 4px; padding: 2px 4px; font-size: .75rem; cursor: pointer;
+  background: none; border: 1px solid transparent; border-radius: 4px; opacity: .25; filter: grayscale(1); }
+.sc-pin:hover { opacity: .7; border-color: var(--accent); }
 .sc-pin.sc-lit { opacity: 1; filter: none; }

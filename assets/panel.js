@@ -8,8 +8,8 @@
 // - Frame: the panel window, its reader state, and the rule of one panel for each page.
 import { html } from "@slate/widget";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { controlMarkup, wireControl, transBinduses, notebookState, notebookCells, teardownControls,
-  typesetControls }
+import { controlMarkup, wireControl, transBinduses, notebookState, notebookCells, notebookKey,
+  teardownControls, typesetControls }
   from "slatecontrols/adapter";
 
 // ── Copies ───────────────────────────────────────────────────────────────────────────────────────
@@ -149,8 +149,8 @@ function panelItems(cells, pinned, mode, grouping, inView) {
 
 // One control. The copy is in the page as long as the row lives. A row has the key of its copy, so
 // the panel draws a copy again only when the control changes its cell, kind or `params`. A change of
-// the pin mark or of the group does not touch the copy.
-function Row({ item, showPin }) {
+// the pin mark or of the group does not touch the copy. A click on the pin mark calls `onPin(name)`.
+function Row({ item, onPin }) {
   const slot = useRef(null);
   useEffect(() => {
     const el = slot.current;
@@ -158,9 +158,10 @@ function Row({ item, showPin }) {
     wireCopies(el);
     return () => teardownCopies(el);
   }, []);
-  return html`<div class="sc-row" data-name=${item.bind.name}>
-    ${showPin && html`<span class=${"sc-pin" + (item.pinned ? " sc-lit" : "")}
-      title=${item.pinned ? "Pinned" : "Not pinned"}>📌</span>`}
+  const name = item.bind.name;
+  return html`<div class="sc-row" data-name=${name}>
+    <button class=${"sc-pin" + (item.pinned ? " sc-lit" : "")} aria-pressed=${item.pinned}
+      title=${item.pinned ? `Unpin ${name}` : `Pin ${name}`} onClick=${() => onPin(name)}>📌</button>
     <div class="sc-slot" ref=${slot}></div>
   </div>`;
 }
@@ -177,13 +178,14 @@ const EMPTY = {
   all: "The notebook has no controls.",
 };
 
-// The body of the panel: the mode switch, the grouping switch and the controls.
-function ControlsList({ pinned, ui, setUi, frame }) {
+// The body of the panel: the mode switch, the grouping switch and the controls. `pinned` is the pin
+// list with the changes of the reader. `onPin(name)` pins or unpins a control.
+function ControlsList({ pinned, onPin, ui, setUi, frame }) {
   const cells = notebookCells();
   const inView = useInView(frame, cells);
   const mode = MODES.some(m => m[0] === ui.mode) ? ui.mode : "pinned";
   const items = panelItems(cells, pinned, mode, ui.grouping, inView || new Set());
-  const row = i => html`<${Row} key=${copyKey(i.cellId, i.bind)} item=${i} showPin=${mode !== "pinned"} />`;
+  const row = i => html`<${Row} key=${copyKey(i.cellId, i.bind)} item=${i} onPin=${onPin} />`;
 
   let body;
   if (ui.grouping) {
@@ -224,7 +226,7 @@ function ControlsList({ pinned, ui, setUi, frame }) {
 let owner = null;
 const isLive = ref => ref !== null && (ref.current === null || ref.current.isConnected);
 
-// The reader state of the panel. `setUi(patch)` merges `patch` into it.
+// The reader state of the panel, before the reader changes it. The mode is the mode of the cell code.
 const initialUi = params => ({
   mode: (params && params.mode) || "pinned",   // "pinned", "in_view", "both" or "all"
   grouping: true,                              // groups by declaring cell
@@ -234,7 +236,40 @@ const initialUi = params => ({
   side: "right",                               // "right" or "left"
   width: 320,                                  // the width of the side panel, in px
   float: null,                                 // { x, y, w, h } of the floating window, in px
+  pins: { added: [], removed: [] },            // the changes of the reader to the pin list
 });
+
+// The browser keeps the changes of the reader in one localStorage entry for each notebook: only the
+// fields that the reader set. A field that the reader did not set comes from `initialUi`, so a new
+// mode or pin list in the cell code still has an effect.
+const storageKey = () => "slatecontrols-panel:" + notebookKey();
+function loadChanges() {
+  try {
+    const v = JSON.parse(localStorage.getItem(storageKey()));
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch (_) { return {}; }                    // no localStorage, or an entry that is not JSON
+}
+function saveChanges(changes) {
+  try {
+    if (Object.keys(changes).length) localStorage.setItem(storageKey(), JSON.stringify(changes));
+    else localStorage.removeItem(storageKey());
+  } catch (_) {}                                // no localStorage, or it is full: the state is lost at reload
+}
+
+// The pin list of the author with the changes `pins` of the reader: the author list without the
+// removed names, then the added names.
+const effectivePins = (author, pins) =>
+  [...author.filter(n => !pins.removed.includes(n)), ...pins.added.filter(n => !author.includes(n))];
+
+// The changes `pins` after the reader pins (`on` true) or unpins `name`. The changes stay as small
+// as possible: a name is in `added` only when the author did not pin it, and in `removed` only when
+// the author pinned it.
+function setPin(author, pins, name, on) {
+  const added = pins.added.filter(n => n !== name), removed = pins.removed.filter(n => n !== name);
+  if (on && !author.includes(name)) added.push(name);
+  if (!on && author.includes(name)) removed.push(name);
+  return { added, removed };
+}
 
 // Sizes in px. The side panel keeps `MIN_SIDE` and a margin of `SIDE_GAP` at the other edge of the
 // window. A window that the reader drops within `EDGE` of the left or right edge docks there.
@@ -290,8 +325,14 @@ export default function ControlsPanel({ params }) {
   if (!isLive(owner)) owner = frame;
   const mine = owner === frame;
   useEffect(() => () => { if (owner === frame) owner = null; }, []);
-  const [ui, setUiState] = useState(() => initialUi(params));
-  const setUi = patch => setUiState(u => ({ ...u, ...patch }));
+  // `changes` holds only the fields that the reader set. The owner panel saves them at each change.
+  const [changes, setChanges] = useState(loadChanges);
+  useEffect(() => { if (mine) saveChanges(changes); }, [changes]);
+  const ui = { ...initialUi(params), ...changes };
+  const setUi = patch => setChanges(c => ({ ...c, ...patch }));
+  const author = (params && params.pinned) || [];
+  const pinned = effectivePins(author, ui.pins);
+  const onPin = name => setUi({ pins: setPin(author, ui.pins, name, !pinned.includes(name)) });
   const [dock, setDock] = useState(null);                // the edge that a drop would dock at
 
   if (!mine) {
@@ -356,9 +397,11 @@ export default function ControlsPanel({ params }) {
         aria-label=${side ? "Show as a floating window" : "Dock as a side panel"}
         onClick=${() => setUi({ layout: side ? "float" : "side" })}>${side ? "◱" : "▐"}</button>
       <button title="Collapse" aria-label="Collapse" onClick=${() => setUi({ collapsed: true })}>${collapseMark}</button>
+      <button title="Reset: remove all your changes, and use the pins and the mode of the cell code"
+        aria-label="Reset the panel" onClick=${() => setChanges({})}>↺</button>
     </div>
     <div class="sc-content">
-      <${ControlsList} pinned=${(params && params.pinned) || []} ui=${ui} setUi=${setUi} frame=${frame} />
+      <${ControlsList} pinned=${pinned} onPin=${onPin} ui=${ui} setUi=${setUi} frame=${frame} />
     </div>
     <div class="sc-grip" onPointerDown=${side ? startSideResize : startFloatResize}></div>
     <button class="sc-tab" title="Show the controls" onClick=${() => setUi({ collapsed: false })}>⚙ Controls</button>

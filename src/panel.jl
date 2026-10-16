@@ -16,6 +16,11 @@ bound value, as an edit in the original control does.
 - `:both`: the pinned controls and the in-view controls.
 - `:all`: all the controls of the notebook.
 
+The reader can pin and unpin controls in the panel, and change the mode, the groups and the layout.
+The browser keeps these changes for each notebook. The pins of the reader are changes to `names`,
+so a new `names` list in the cell code still has an effect. The reset button of the panel removes
+all the changes of the reader. The panel then uses `names`, `mode` and the default layout.
+
 Use one `ControlsPanel` on a page. A second panel shows an error in its output. On a static page,
 the panel shows nothing.
 """

@@ -33,6 +33,10 @@ export const notebookState = () => window.__slateState || null;
 export const notebookCells = () =>
   window.slateStore ? window.slateStore.cells.value : ((notebookState() || {}).cells || []);
 
+// The key of this notebook for the reader state in the browser: the `docid` of the notebook, else
+// the path of the page. The page state of Slate has no `docid` at this time, so the key is the path.
+export const notebookKey = () => (notebookState() || {}).docid || location.pathname;
+
 // Release the resources of the custom controls under `root`, before the panel removes them.
 export const teardownControls = root => window.slateTeardownOutput && window.slateTeardownOutput(root);
 
