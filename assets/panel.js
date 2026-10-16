@@ -21,10 +21,11 @@ import { controlMarkup, wireControl, transBinduses, notebookState, notebookCells
 // form owner, so the radios of a copy do not share a selection with the radios of the original, and
 // they keep that after Slate builds the options again under the name of the original. The `form`
 // also stops a submit (Enter in a text field, a button of a custom widget) from reloading the page.
+// A submit also removes the focus: the field then sends its value, and the panel list is not frozen.
 function copyElement(cellId, b) {
   const el = document.createElement("form");
   el.className = "widget";                // the class gives the `.wval` value mirror and the style
-  el.addEventListener("submit", e => e.preventDefault());
+  el.addEventListener("submit", e => { e.preventDefault(); document.activeElement?.blur(); });
   el.innerHTML = controlMarkup(cellId, b);
   // A kind that Slate does not draw is a custom widget. Its front end fills the empty container
   // when it registers. The hint shows only while the container is empty (see panel.css).
