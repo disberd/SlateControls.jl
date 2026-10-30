@@ -7,14 +7,29 @@
 
 const REQUIRED = ['controlMarkup', 'wireControl', 'transBinduses'];
 
-// A static page has no notebook state and no helpers. Do the check only on a live page.
-const missing = window.__slateState ? REQUIRED.filter(n => typeof window[n] !== 'function') : [];
-if (missing.length) {
-  console.error(`SlateControls: this Slate version does not have ${missing.join(', ')}. ` +
-                'Use the Slate version that the SlateControls compat entry gives.');
+// The first Slate release with the option-value keys and the `bind_observable` uses that the
+// panel needs. The worker environment does not contain KaimonSlate, so a Julia compat entry cannot
+// pin it: the page does the check. Slate writes its version into `window.__SLATE_VERSION__`.
+const MIN_SLATE = [1, 12, 1];
+
+const tooOld = v => {
+  const n = String(v).split(/[.+-]/).slice(0, 3).map(Number);
+  for (let i = 0; i < 3; i++) if ((n[i] || 0) !== MIN_SLATE[i]) return (n[i] || 0) < MIN_SLATE[i];
+  return false;
+};
+
+// A static page has no notebook state and no helpers. Do the checks only on a live page.
+const live = !!window.__slateState;
+const missing = live ? REQUIRED.filter(n => typeof window[n] !== 'function') : [];
+const version = window.__SLATE_VERSION__;
+const old = live && !!version && tooOld(version);
+if (missing.length || old) {
+  console.error(`SlateControls: Slate ${version || '(unknown version)'} is not supported` +
+                (missing.length ? `: it does not have ${missing.join(', ')}` : '') +
+                `. Use Slate ${MIN_SLATE.join('.')} or later.`);
 }
 
-export const ok = missing.length === 0;
+export const ok = missing.length === 0 && !old;
 
 // Markup of one control, as Slate draws it in a cell.
 export const controlMarkup = (bindId, b) => window.controlMarkup(bindId, b);
